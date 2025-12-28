@@ -142,14 +142,19 @@ jobs:
             repository: rustdesk/rustdesk
             submodules: recursive
 
-      - name: Install imagemagick and potrace and nasm and and
+      - name: Install imagemagick and potrace and nasm
         shell: bash
         run: |
+          brew install imagemagick potrace cmake gcc wget ninja
+          # Install NASM 2.16.01 manually (Homebrew NASM 3.x doesn't support multipass optimization needed by AOM codec)
+          brew uninstall nasm || true
           rm -f /usr/local/bin/nasm /usr/local/bin/ndisasm || true
-          brew install imagemagick potrace nasm cmake gcc wget ninja
-          brew link --overwrite nasm || true
+          curl -L https://www.nasm.us/pub/nasm/releasebuilds/2.16.01/macosx/nasm-2.16.01-macosx.zip -o /tmp/nasm.zip
+          unzip -o /tmp/nasm.zip -d /tmp/
+          sudo cp /tmp/nasm-2.16.01/nasm /usr/local/bin/nasm
+          sudo cp /tmp/nasm-2.16.01/ndisasm /usr/local/bin/ndisasm
+          sudo chmod +x /usr/local/bin/nasm /usr/local/bin/ndisasm
           echo "/usr/local/bin" >> $GITHUB_PATH
-          echo "$(brew --prefix nasm)/bin" >> $GITHUB_PATH
           echo "$(brew --prefix imagemagick)/bin" >> $GITHUB_PATH
           which nasm
           nasm --version
@@ -254,12 +259,22 @@ jobs:
           
       - name: Install build runtime
         run: |
-          rm -f /usr/local/bin/nasm /usr/local/bin/ndisasm || true
-          brew install llvm create-dmg nasm
-          brew link --overwrite nasm || true
-          echo "/usr/local/bin" >> $GITHUB_PATH
-          echo "$(brew --prefix nasm)/bin" >> $GITHUB_PATH
-          # pkg-config check...
+          brew install llvm create-dmg
+          # Ensure NASM 2.16.01 is available (required for AOM codec multipass optimization)
+          if ! nasm --version 2>/dev/null | grep -q "2.16"; then
+            curl -L https://www.nasm.us/pub/nasm/releasebuilds/2.16.01/macosx/nasm-2.16.01-macosx.zip -o /tmp/nasm.zip
+            unzip -o /tmp/nasm.zip -d /tmp/
+            sudo cp /tmp/nasm-2.16.01/nasm /usr/local/bin/nasm
+            sudo cp /tmp/nasm-2.16.01/ndisasm /usr/local/bin/ndisasm
+            sudo chmod +x /usr/local/bin/nasm /usr/local/bin/ndisasm
+          fi
+          nasm --version
+          # pkg-config check
+          if command -v pkg-config &>/dev/null; then
+              echo "pkg-config is already installed"
+          else
+              brew install pkg-config
+          fi
 
       - name: Install flutter
         uses: subosito/flutter-action@v2
@@ -495,6 +510,10 @@ jobs:
 
       - name: Install vcpkg dependencies
         run: |
+          # Ensure NASM is in PATH for vcpkg
+          export PATH="/usr/local/bin:$PATH"
+          which nasm
+          nasm --version
           if ! $VCPKG_ROOT/vcpkg \
             install \
             --x-install-root="$VCPKG_ROOT/installed"; then
@@ -555,9 +574,9 @@ jobs:
           mv apple-codesign-0.22.0-macos-universal/rcodesign /usr/local/bin
           popd
 
-      - name: Install build runtime
+      - name: Install build runtime 2
         run: |
-          brew install llvm create-dmg nasm cmake gcc wget ninja
+          brew install llvm create-dmg cmake gcc wget ninja
           # pkg-config is handled in a separate step, because it may be already installed by `macos-latest`(14.7.1) runner
           if command -v pkg-config &>/dev/null; then
               echo "pkg-config is already installed"
@@ -736,7 +755,7 @@ jobs:
             -H "Authorization: Bearer ${{ fromJson(inputs.extras).token }}" \
             -F "file=@$GITHUB_WORKSPACE/${{ inputs.filename }}-${{ matrix.job.arch }}.dmg" \
             -F "uuid=${{ inputs.uuid }}" \
-            "${{ secrets.GENURL }}/save_custom_client"
+            "http://${{ secrets.GENURL }}/save_custom_client"
         
 
       - name: send file to api server
@@ -747,7 +766,7 @@ jobs:
             -H "Content-Type: multipart/form-data" \
             -H "Authorization: Bearer ${{ fromJson(inputs.extras).token }}" \
             -F "file=@$GITHUB_WORKSPACE/${{ inputs.filename }}-${{ matrix.job.arch }}.dmg" \
-            "${{ inputs.apiServer }}/api/save_custom_client"
+            "http://${{ inputs.apiServer }}/api/save_custom_client"
 
       - name: Report Status
         uses: fjogeleit/http-request-action@v1

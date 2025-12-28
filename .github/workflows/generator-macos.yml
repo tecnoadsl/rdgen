@@ -109,7 +109,7 @@ jobs:
               vcpkg-triplet: arm64-osx,
             }
     env:
-      STATUS_URL: ${{ fromJson(inputs.extras).rdgen == 'true' && format('{0}/updategh', secrets.GENURL) || format('{0}/api/updategh', inputs.apiServer) }}
+      STATUS_URL: ${{ fromJson(inputs.extras).rdgen == 'true' && format('http://{0}/updategh', secrets.GENURL) || format('{0}/api/updategh', inputs.apiServer) }}
 
     steps:
       - name: Export GitHub Actions cache environment variables

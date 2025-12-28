@@ -145,13 +145,10 @@ jobs:
       - name: Install imagemagick and potrace and nasm and and
         shell: bash
         run: |
-          brew uninstall nasm || true
-          brew install imagemagick potrace cmake gcc wget ninja
-          curl -L https://www.nasm.us/pub/nasm/releasebuilds/2.16.01/macosx/nasm-2.16.01-macosx.zip -o nasm.zip
-          unzip nasm.zip
-          sudo mv nasm-2.16.01/nasm /usr/local/bin/nasm
-          sudo mv nasm-2.16.01/ndisasm /usr/local/bin/ndisasm
-          nasm --version
+          rm -f /usr/local/bin/nasm /usr/local/bin/ndisasm || true
+          brew install imagemagick potrace nasm cmake gcc wget ninja
+          brew link --overwrite nasm || true
+          echo "$(brew --prefix imagemagick)/bin" >> $GITHUB_PATH
 
       - name: Update macOS Info.plist and settings
         continue-on-error: false
@@ -253,7 +250,9 @@ jobs:
           
       - name: Install build runtime
         run: |
+          rm -f /usr/local/bin/nasm /usr/local/bin/ndisasm || true
           brew install llvm create-dmg nasm
+          brew link --overwrite nasm || true
           # pkg-config is handled in a separate step, because it may be already installed by `macos-latest`(14.7.1) runner
           if command -v pkg-config &>/dev/null; then
               echo "pkg-config is already installed"

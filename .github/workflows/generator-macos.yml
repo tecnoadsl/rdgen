@@ -148,7 +148,11 @@ jobs:
           rm -f /usr/local/bin/nasm /usr/local/bin/ndisasm || true
           brew install imagemagick potrace nasm cmake gcc wget ninja
           brew link --overwrite nasm || true
+          echo "/usr/local/bin" >> $GITHUB_PATH
+          echo "$(brew --prefix nasm)/bin" >> $GITHUB_PATH
           echo "$(brew --prefix imagemagick)/bin" >> $GITHUB_PATH
+          which nasm
+          nasm --version
 
       - name: Update macOS Info.plist and settings
         continue-on-error: false
@@ -253,12 +257,9 @@ jobs:
           rm -f /usr/local/bin/nasm /usr/local/bin/ndisasm || true
           brew install llvm create-dmg nasm
           brew link --overwrite nasm || true
-          # pkg-config is handled in a separate step, because it may be already installed by `macos-latest`(14.7.1) runner
-          if command -v pkg-config &>/dev/null; then
-              echo "pkg-config is already installed"
-          else
-              brew install pkg-config
-          fi
+          echo "/usr/local/bin" >> $GITHUB_PATH
+          echo "$(brew --prefix nasm)/bin" >> $GITHUB_PATH
+          # pkg-config check...
 
       - name: Install flutter
         uses: subosito/flutter-action@v2
